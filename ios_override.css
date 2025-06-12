@@ -1,0 +1,11 @@
+.main-wrapper {
+    padding-bottom: 90px;
+    }
+    * {
+      user-select: none;
+    }
+    img, a {
+      -webkit-user-drag: none;
+      user-drag: none;
+      pointer-events: auto;
+    }    
