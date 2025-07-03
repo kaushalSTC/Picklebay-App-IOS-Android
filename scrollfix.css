@@ -1,0 +1,10 @@
+.filter-scroll-fix {
+    -webkit-overflow-scrolling: touch !important;
+    overflow-x: auto !important;
+    touch-action: pan-x !important;
+    scroll-behavior: smooth !important;
+  }
+  .filter-scroll-fix::-webkit-scrollbar {
+    display: none !important;
+}
+  
