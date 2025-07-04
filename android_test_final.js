@@ -519,7 +519,6 @@
         disableInputAutofill();
         removeCommunityHeader();
         interceptLocationButtons();
-        enhanceFilterTouchArea();
     }
 
     runAllOverrides();

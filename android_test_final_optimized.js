@@ -1,6 +1,14 @@
 (function() {
     'use strict';
-    
+
+    let isNavLayoutApplied = false;
+    let isFooterDisplayToggled = false;
+    let isEmailClickable = false;
+    let isAlsoHappeningMarginAdded = false;
+    let isInputAutofillDisabled = false;
+    let isCommunityHeaderRemoved = false;
+    let isLocationButtonsIntercepted = false;
+
     function loadWebToNative() {
         return new Promise((resolve, reject) => {
             try {
@@ -30,6 +38,7 @@
     }
 
     function interceptLocationButtons() {
+        if (isLocationButtonsIntercepted) return;
         try {
             const locationButton = document.querySelector('.currentLocation-access');
             if (locationButton) {
@@ -46,6 +55,7 @@
                 } catch (buttonError) {}
             }
         } catch (interceptError) {}
+        isLocationButtonsIntercepted = true;
     }
 
     async function handleLocationButtonClick(event) {
@@ -77,7 +87,7 @@
             try {
                 if (typeof window.setLocationError === 'function') {
                     window.setLocationError('Error in location button: ' + error.message);
-                }
+                } else {}
             } catch (errorSetError) {}
             try {
                 if (typeof window.setLocationLoading === 'function') {
@@ -87,7 +97,7 @@
         }
     }
 
-    async function showPosition(position) {
+    function showPosition(position) {
         try {
             if (!position || !position.coords) {
                 try {
@@ -111,7 +121,7 @@
             try {
                 if (typeof window.setLocationData === 'function') {
                     window.setLocationData({ lat: lat, lng: lon });
-                }
+                } else {}
             } catch (dataSetError) {
                 try {
                     if (typeof window.setLocationLoading === 'function') {
@@ -128,7 +138,7 @@
         }
     }
 
-    async function showError(error) {
+    function showError(error) {
         try {
             if (!error) {
                 try {
@@ -163,7 +173,7 @@
             try {
                 if (typeof window.setLocationError === 'function') {
                     window.setLocationError(errorMessage);
-                }
+                } else {}
             } catch (errorSetError) {}
             try {
                 if (typeof window.setLocationLoading === 'function') {
@@ -182,6 +192,7 @@
     async function checkGPSStatus() {
         try {
             try {
+                await loadWebToNative();
             } catch (loadError) {
                 await fallbackToStandardGeolocation();
                 return;
@@ -209,14 +220,14 @@
         }
     }
 
-    async function requestLocation() {
+    function requestLocation() {
         try {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(showPosition, showError);
             } else {
                 if (typeof window.setLocationError === 'function') {
                     window.setLocationError('Geolocation is not supported by this browser.');
-                }
+                } else {}
                 try {
                     if (typeof window.setLocationLoading === 'function') {
                         window.setLocationLoading(false);
@@ -226,7 +237,7 @@
         } catch (locationError) {
             if (typeof window.setLocationError === 'function') {
                 window.setLocationError(`Error requesting location: ${locationError.message}`);
-            }
+            } else {}
             try {
                 if (typeof window.setLocationLoading === 'function') {
                     window.setLocationLoading(false);
@@ -237,11 +248,11 @@
 
     async function fallbackToStandardGeolocation() {
         try {
-            await requestLocation();
+            requestLocation();
         } catch (fallbackError) {
             if (typeof window.setLocationError === 'function') {
                 window.setLocationError(`Error in fallback geolocation: ${fallbackError.message}`);
-            }
+            } else {}
             try {
                 if (typeof window.setLocationLoading === 'function') {
                     window.setLocationLoading(false);
@@ -262,7 +273,7 @@
                     }
                 }, 5000);
                 WTN.isDeviceGPSEnabled({
-                    callback: async function(data) {
+                    callback: function(data) {
                         if (callbackExecuted) return;
                         callbackExecuted = true;
                         clearTimeout(timeoutId);
@@ -270,12 +281,12 @@
                             if (data && typeof data === 'object') {
                                 if (data.value !== undefined) {
                                     if (data.value === true) {
-                                        await requestLocation();
+                                        requestLocation();
                                         resolve();
                                     } else {
                                         if (typeof window.setLocationError === 'function') {
                                             window.setLocationError('Device GPS is disabled. Please enable location services in your device settings.');
-                                        }
+                                        } else {}
                                         try {
                                             if (typeof window.setLocationLoading === 'function') {
                                                 window.setLocationLoading(false);
@@ -284,15 +295,15 @@
                                         resolve();
                                     }
                                 } else {
-                                    await fallbackToStandardGeolocation();
+                                    fallbackToStandardGeolocation();
                                     resolve();
                                 }
                             } else {
-                                await fallbackToStandardGeolocation();
+                                fallbackToStandardGeolocation();
                                 resolve();
                             }
                         } catch (callbackError) {
-                            await fallbackToStandardGeolocation();
+                            fallbackToStandardGeolocation();
                             resolve();
                         }
                     }
@@ -316,39 +327,8 @@
         }
     }
 
-    function adjustGenderSelectHeightIOS() {
-        const nameInput = document.querySelector('input[name="name"]');
-        const genderSelect = document.querySelector('select[name="gender"]');
-        if (nameInput && genderSelect) {
-            const nameHeight = window.getComputedStyle(nameInput).height;
-            genderSelect.style.height = nameHeight;
-        }
-    }
-
-    function interceptWindowOpenIOS() {
-        let interceptedUrl = null;
-        window.open = function(url, target, features) {
-            interceptedUrl = url;
-            const anchor = document.createElement('a');
-            anchor.href = interceptedUrl;
-            anchor.target = '_blank';
-            anchor.rel = 'noopener noreferrer';
-            anchor.textContent = 'Open Community';
-            anchor.style.display = 'none';
-            document.body.appendChild(anchor);
-            setTimeout(() => {
-                const evt = new MouseEvent('click', {
-                    view: window,
-                    bubbles: true,
-                    cancelable: true,
-                });
-                anchor.dispatchEvent(evt);
-            }, 300);
-            return null;
-        };
-    }
-
     function toggleFooterDisplay() {
+        if (isFooterDisplayToggled) return;
         const footerWrapper = document.querySelector('.main-footer-wrapper');
         if (footerWrapper) {
             const currentUrl = window.location.href.toLowerCase();
@@ -356,14 +336,15 @@
                 footerWrapper.style.display = 'block';
                 footerWrapper.style.height = '20vh';
                 removeFooterChildren();
-                adjustGenderSelectHeightIOS();
             } else {
                 footerWrapper.style.display = 'none';
             }
         }
+        isFooterDisplayToggled = true;
     }
 
     function makeEmailClickable() {
+        if (isEmailClickable) return;
         if (!window.location.href.toLowerCase().includes('contactus')) return;
         const emailElements = document.querySelectorAll('.email-access');
         if (emailElements.length > 0) {
@@ -423,20 +404,16 @@
                 }
             });
         }
-    }
-
-    function fixNavigationContainerBorder() {
-        const navigationContainer = document.querySelector('.navigation-container');
-        if (navigationContainer) {
-            navigationContainer.style.borderBottom = '1px solid rgb(0, 0, 0)';
-        }
+        isEmailClickable = true;
     }
 
     function addMarginToAlsoHappeningContainer() {
+        if (isAlsoHappeningMarginAdded) return;
         const alsoHappeningContainer = document.querySelector('.also-happening-container');
         if (alsoHappeningContainer) {
             alsoHappeningContainer.style.marginBottom = '10vh';
         }
+        isAlsoHappeningMarginAdded = true;
     }
 
     function processInputForAutofill(inputType, input) {
@@ -461,14 +438,17 @@
     }
 
     function disableInputAutofill() {
+        if (isInputAutofillDisabled) return;
         if (!window.location.href.toLowerCase().includes('login')) return;
         const inputs = document.querySelectorAll('input');
         inputs.forEach(input => {
             processInputForAutofill(input.type, input);
         });
+        isInputAutofillDisabled = true;
     }
 
     function removeCommunityHeader() {
+        if (isCommunityHeaderRemoved) return;
         if (!window.location.href.toLowerCase().includes('community.picklebay.com')) return;
         const headers = document.querySelectorAll('body > header.header');
         headers.forEach(header => {
@@ -476,63 +456,69 @@
                 header.remove();
             }
         });
+        isCommunityHeaderRemoved = true;
     }
 
-    function applyBodySafeAreaPadding() {
-        const safeAreaPadding = window.innerHeight * 0.018;
-        document.body.style.paddingBottom = `${safeAreaPadding}px`;
-        return safeAreaPadding;
+    function updateNavigationContainerLayout() {
+        if (isNavLayoutApplied) return;
+        try {
+            const navContainer = document.querySelector('.navigation-container');
+            if (navContainer) {
+                const parent = navContainer.parentElement;
+                if (parent) {
+                    parent.className = '';
+                    parent.classList.add(
+                        'fixed',
+                        'bottom-0',
+                        'left-0',
+                        'w-full',
+                        'z-50',
+                        'bg-white',
+                        'border-t',
+                        'border-f2f2f2'
+                    );
+                    parent.style.borderTopLeftRadius = '1rem';
+                    parent.style.borderTopRightRadius = '1rem';
+                }
+                navContainer.className = '';
+                navContainer.classList.add(
+                    'navigation-container',
+                    'flex',
+                    'items-center',
+                    'justify-between',
+                    'gap-3',
+                    'px-4',
+                    'py-2',
+                    'bg-white',
+                    'w-full'
+                );
+                navContainer.style.borderTopLeftRadius = '1rem';
+                navContainer.style.borderTopRightRadius = '1rem';
+            }
+        } catch (e) {}
+        isNavLayoutApplied = true;
     }
 
-    async function updateNavigationContainerLayout() {
-        const navContainer = document.querySelector('.navigation-container');
-        if (!navContainer) return;
-    
-        const safeAreaPadding = applyBodySafeAreaPadding();
-    
-        const parent = navContainer.parentElement;
-        if (parent) {
-            parent.className = '';
-            parent.classList.add(
-                'fixed', 'bottom-0', 'left-0', 'w-full', 'z-50', 'bg-white', 'border-t', 'border-f2f2f2'
-            );
-            parent.style.borderTopLeftRadius = '1rem';
-            parent.style.borderTopRightRadius = '1rem';
-            parent.style.removeProperty('padding-bottom');
-        }
-    
-        navContainer.className = '';
-        navContainer.classList.add(
-            'navigation-container', 'flex', 'items-center', 'justify-between', 'gap-3',
-            'px-4', 'py-2', 'bg-white', 'w-full'
-        );
-        navContainer.style.borderTopLeftRadius = '1rem';
-        navContainer.style.borderTopRightRadius = '1rem';
-    
-        navContainer.querySelectorAll('span.bg-56b918').forEach(span => {
-            span.style.bottom = `${safeAreaPadding}px`;
-        });
-    }
-    
-    
-
-    async function runAllOverrides() {
-        applyBodySafeAreaPadding();
-        await loadWebToNative();
-        await updateNavigationContainerLayout();
-        await toggleFooterDisplay();
-        await makeEmailClickable();
-        await fixNavigationContainerBorder();
-        await addMarginToAlsoHappeningContainer();
-        await disableInputAutofill();
-        await removeCommunityHeader();
-        await interceptLocationButtons();
-        await interceptWindowOpenIOS();
+    function runAllOverrides() {
+        updateNavigationContainerLayout();
+        toggleFooterDisplay();
+        makeEmailClickable();
+        addMarginToAlsoHappeningContainer();
+        disableInputAutofill();
+        removeCommunityHeader();
+        interceptLocationButtons();
     }
 
     runAllOverrides();
 
     const observer = new MutationObserver(mutations => {
+        isNavLayoutApplied = false;
+        isFooterDisplayToggled = false;
+        isEmailClickable = false;
+        isAlsoHappeningMarginAdded = false;
+        isInputAutofillDisabled = false;
+        isCommunityHeaderRemoved = false;
+        isLocationButtonsIntercepted = false;
         mutations.forEach(mutation => {
             if (mutation.addedNodes.length) {
                 runAllOverrides();
@@ -546,6 +532,13 @@
     });
 
     window.addEventListener('load', () => {
+        isNavLayoutApplied = false;
+        isFooterDisplayToggled = false;
+        isEmailClickable = false;
+        isAlsoHappeningMarginAdded = false;
+        isInputAutofillDisabled = false;
+        isCommunityHeaderRemoved = false;
+        isLocationButtonsIntercepted = false;
         runAllOverrides();
     });
 
